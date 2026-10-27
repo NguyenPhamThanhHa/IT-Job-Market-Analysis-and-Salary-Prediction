@@ -6,9 +6,17 @@ import streamlit as st
 # Cấu hình trang Streamlit
 st.set_page_config(
     page_title="Dự đoán mức lương IT Toàn cầu",
-    page_icon="💻",
     layout="centered"
 )
+
+# Sử dụng CSS để căn giữa toàn bộ tiêu đề chính (h1)
+st.markdown("""
+    <style>
+    h1 {
+        text-align: center;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # Đường dẫn thư mục models
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -29,15 +37,14 @@ except Exception as e:
     st.error(f"Lỗi khi tải mô hình: {e}. Hãy đảm bảo bạn đã chạy file train_model.py trước!")
     st.stop()
 
-# Giao diện tiêu đề ứng dụng
-st.title("💻 Hệ Thống Dự Đoán Mức Lương Lập Trình Viên Toàn Cầu")
-st.markdown("Đồ án cuối kỳ môn Python - Ứng dụng Machine Learning (**Random Forest Regressor**) dự đoán thu nhập ngành IT.")
+# Tiêu đề chính (đã được căn giữa bằng CSS, đã xóa dòng mô tả đồ án)
+st.title("Hệ Thống Dự Đoán Mức Lương Lập Trình Viên Toàn Cầu")
 
 st.divider()
 
 # Form nhập liệu
 with st.form("prediction_form"):
-    st.subheader("📝 Nhập thông tin truy vấn")
+    st.subheader("Nhập thông tin truy vấn")
     
     col1, col2 = st.columns(2)
     
@@ -53,7 +60,12 @@ with st.form("prediction_form"):
     
     company_location = st.selectbox("Mã quốc gia làm việc (ví dụ: VN, US, GB...)", options=all_locations, index=default_idx)
 
-    submitted = st.form_submit_button("🚀 Dự đoán mức lương")
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Canh giữa nút bấm
+    b_col1, b_col2, b_col3 = st.columns([1, 2, 1])
+    with b_col2:
+        submitted = st.form_submit_button("Dự đoán mức lương", use_container_width=True)
 
 # Xử lý kết quả khi bấm nút
 if submitted:
@@ -73,14 +85,14 @@ if submitted:
 
         # Hiển thị kết quả trực quan
         st.divider()
-        st.subheader("🎯 Kết Quả Dự Đoán")
+        st.subheader("Kết Quả Dự Đoán")
         
         c1, c2, c3 = st.columns(3)
         c1.metric(label="Năm làm việc", value=work_year)
         c2.metric(label="Vị trí", value=job_title)
         c3.metric(label="Quốc gia", value=company_location)
 
-        st.success(f"### 💰 Mức lương dự kiến: **${predicted_salary_usd:,.2f} USD / năm**")
+        st.success(f"Mức lương dự kiến: **${predicted_salary_usd:,.2f} USD / năm**")
 
     except Exception as ex:
         st.error(f"Đã xảy ra lỗi trong quá trình dự đoán: {ex}")
