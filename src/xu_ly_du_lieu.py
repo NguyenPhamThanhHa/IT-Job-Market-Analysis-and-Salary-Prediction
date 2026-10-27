@@ -5,8 +5,9 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 data_path = os.path.join(current_dir, "..", "data", "salary_data.txt")
 
 df = pd.read_csv(data_path, sep=",")
-print(f"Số lượng dòng ban đầu: {len(df)}")
+print(f"Số lượng dòng ban đầu (toàn cầu): {len(df)}")
 
+# Hàm gom nhóm thông minh thành 4 vị trí chuẩn
 def map_job_title(index, title):
     title_lower = str(title).lower()
     if any(k in title_lower for k in ["front", "react", "vue", "angular", "ui", "ux", "javascript", "js", "html", "css", "web"]):

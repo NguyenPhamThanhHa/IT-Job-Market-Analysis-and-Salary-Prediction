@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.metrics import mean_absolute_error
 import joblib
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -13,7 +13,7 @@ os.makedirs(models_dir, exist_ok=True)
 
 df = pd.read_csv(data_path)
 
-# Huấn luyện trên toàn bộ dữ liệu để encoder học đủ 4 nhóm ngành
+# Mã hóa nhãn (Học toàn bộ dữ liệu quốc gia và chức vụ)
 job_encoder = LabelEncoder()
 location_encoder = LabelEncoder()
 
@@ -32,7 +32,7 @@ rf.fit(X_train, y_train)
 rf_pred = rf.predict(X_test)
 print(f"Random Forest MAE: {mean_absolute_error(y_test, rf_pred)}")
 
-# Lưu mô hình và encoder
+# Lưu mô hình và các encoder
 joblib.dump(rf, os.path.join(models_dir, "salary_model.pkl"))
 joblib.dump(job_encoder, os.path.join(models_dir, "job_encoder.pkl"))
 joblib.dump(location_encoder, os.path.join(models_dir, "location_encoder.pkl"))
