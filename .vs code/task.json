@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Streamlit App",
+      "type": "process",
+      "command": "C:\\Users\\Dell\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+      "args": ["-m", "streamlit", "run", "${workspaceFolder}\\src\\app.py"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    }
+  ]
+}
