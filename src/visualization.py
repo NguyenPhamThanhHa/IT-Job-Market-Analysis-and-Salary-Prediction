@@ -19,17 +19,17 @@ plt.figure(figsize=(12, 6))
 # --- Biểu đồ 1: Phân phối mức lương theo USD (salary_in_usd) ---
 plt.subplot(1, 2, 1)
 sns.histplot(df["salary_in_usd"], bins=30, kde=True, color="skyblue")
-plt.title("Phan phoi muc luong (USD)")
-plt.xlabel("Luong (USD)")
-plt.ylabel("So luong")
+plt.title("Phân phối mức lương (USD)")
+plt.xlabel("Lương (USD)")
+plt.ylabel("Số lượng")
 
 # --- Biểu đồ 2: Top 5 Job Title có mức lương trung bình cao nhất ---
 plt.subplot(1, 2, 2)
 top_jobs = df.groupby("job_title")["salary_in_usd"].mean().nlargest(5).reset_index()
 sns.barplot(data=top_jobs, x="salary_in_usd", y="job_title", palette="viridis")
-plt.title("Top 5 cong việc co luong cao nhat")
-plt.xlabel("Luong trung binh (USD)")
-plt.ylabel("Ten cong viec")
+plt.title("Top 5 công việc có lương cao nhất")
+plt.xlabel("Lương trung bình (USD)")
+plt.ylabel("Tên công việc")
 
 plt.tight_layout()
 
