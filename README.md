@@ -39,7 +39,7 @@ Dự án tập trung phân tích dữ liệu tuyển dụng và khảo sát củ
 - Scikit-learn
 - Jupyter Notebook
 
-   ==========================================================================================
+ ==========================================================================================
 # Analysis of IT Job Market Trends and Prediction of Programmers' Salaries
 
 ## 1. Introduction
