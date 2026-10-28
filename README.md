@@ -1,4 +1,5 @@
 **Phân tích xu hướng thị trường việc làm CNTT và dự đoán mức lương lập trình viên**
+
 **Giới thiệu**
 Dự án tập trung phân tích dữ liệu tuyển dụng và khảo sát của ngành Công nghệ Thông tin nhằm khám phá các xu hướng công nghệ đang được tuyển dụng nhiều nhất, các kỹ năng có giá trị cao trên thị trường lao động, đồng thời xây dựng mô hình học máy để dự đoán mức lương của lập trình viên dựa trên kinh nghiệm, vị trí công việc và bộ kỹ năng sở hữu.
 
