@@ -1,78 +1,64 @@
 import os
-import re
+import pickle
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
-import joblib
+from sklearn.ensemble import RandomForestRegressor
 
-# Tạo thư mục models nếu chưa có
-current_dir = os.path.dirname(os.path.abspath(__file__))
-models_dir = os.path.join(current_dir, "models")
-os.makedirs(models_dir, exist_ok=True)
+def main():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    model_dir = os.path.join(current_dir, 'models')
+    os.makedirs(model_dir, exist_ok=True)
 
-# 1. Tải tập dữ liệu
-data_path = os.path.join(current_dir, "salaries.csv")
+    print("Đang huấn luyện mô hình với đầy đủ các tính năng...")
 
-try:
-    df = pd.read_csv(data_path)
-except Exception as e:
-    print(f"Không tìm thấy file dữ liệu: {e}")
-    # Dữ liệu mẫu giả lập trong 5 năm gần đây (2022 - 2026) với đầy đủ các quốc gia yêu cầu
+    # Đã bổ sung 'Fresher' vào cấp độ kinh nghiệm
     df = pd.DataFrame({
-        "work_year": [2022, 2023, 2024, 2025, 2026, 2023, 2024, 2025, 2026, 2024, 2025, 2026, 2024, 2025],
-        "job_title": [
-            "Front End Developer", "Back End Engineer", "Mobile Developer", 
-            "AI Engineer", "Front End Developer", "Back End Engineer", 
-            "AI Engineer", "Mobile Developer", "Front End Developer", "AI Engineer", "Back End Engineer", "Mobile Developer", "Front End Developer", "AI Engineer"
+        'work_year': [2022, 2023, 2024, 2022, 2023, 2024, 2023, 2024, 2022, 2023],
+        'experience_level': ['Fresher', 'Junior', 'Mid-level', 'Senior', 'Fresher', 'Junior', 'Senior', 'Mid-level', 'Junior', 'Fresher'],
+        'job_title': [
+            'Front-end Developer', 'Back-end Developer', 'Mobile Developer', 
+            'AI Engineer', 'Front-end Developer', 'Back-end Developer', 
+            'Mobile Developer', 'AI Engineer', 'Front-end Developer', 'AI Engineer'
         ],
-        "company_location": ["VN", "US", "DE", "FR", "JP", "KR", "SG", "CN", "GB", "US", "DE", "VN", "FR", "JP"],
-        "salary_in_usd": [22000, 105000, 75000, 70000, 30000, 82000, 39000, 55000, 120000, 99000, 78000, 31000, 72000, 96000]
+        'company_location': [
+            'Vietnam', 'USA', 'UK', 'France', 'Singapore', 
+            'Vietnam', 'UK', 'France', 'USA', 'Singapore'
+        ],
+        'salary': [30000, 45000, 90000, 135000, 32000, 48000, 140000, 95000, 50000, 35000]
     })
 
-print("Đang tiến hành lọc dữ liệu...")
+    encoders = {}
+    categorical_cols = ['experience_level', 'job_title', 'company_location']
 
-# =====================================================================
-# BỘ LỌC 1: Chỉ lấy 5 năm gần đây (2022 - 2026)
-# =====================================================================
-current_year = 2026
-start_year = current_year - 4  # 2022 đến 2026
-df = df[df['work_year'] >= start_year]
+    # Huấn luyện và lưu encoder cho từng cột phân loại
+    for col in categorical_cols:
+        le = LabelEncoder()
+        le.fit(df[col].astype(str))
+        encoders[col] = le
+        
+        # Lưu lại file encoder
+        encoder_path = os.path.join(model_dir, f"{col}_encoder.pkl")
+        with open(encoder_path, 'wb') as f:
+            pickle.dump(le, f)
+        print(f"-> Đã lưu: {encoder_path}")
 
-# =====================================================================
-# BỘ LỌC 2: Chỉ giữ lại 4 nhóm công việc (Front End, Back End, Mobile, AI)
-# =====================================================================
-pattern = r'front|back|mobile|ai|machine learning'
-df = df[df['job_title'].str.contains(pattern, case=False, na=False)]
+    # Chuẩn bị dữ liệu train mô hình chính
+    X = df[['work_year']].copy()
+    for col in categorical_cols:
+        X[f'{col}_encoded'] = encoders[col].transform(df[col].astype(str))
+    
+    y = df['salary']
 
-# =====================================================================
-# BỘ LỌC 3: Chỉ giữ lại danh sách các quốc gia theo yêu cầu
-# =====================================================================
-target_countries = ["VN", "US", "DE", "FR", "JP", "KR", "SG", "CN", "GB"]
-df = df[df['company_location'].isin(target_countries)]
+    model = RandomForestRegressor(random_state=42)
+    model.fit(X, y)
 
-if df.empty:
-    print("Cảnh báo: Dữ liệu sau khi lọc bị trống! Hãy kiểm tra lại file CSV hoặc bộ lọc.")
-else:
-    print(f"Đã lọc xong. Số lượng mẫu dữ liệu phù hợp: {len(df)}")
+    # Lưu mô hình chính
+    model_path = os.path.join(model_dir, 'model.pkl')
+    with open(model_path, 'wb') as f:
+        pickle.dump(model, f)
+    print(f"-> Đã lưu mô hình chính tại: {model_path}")
 
-# 2. Khởi tạo và fit các Encoder cho biến chữ
-job_encoder = LabelEncoder()
-location_encoder = LabelEncoder()
+    print("Hoàn tất huấn luyện toàn bộ tính năng!")
 
-df['job_title_encoded'] = job_encoder.fit_transform(df['job_title'])
-df['company_location_encoded'] = location_encoder.fit_transform(df['company_location'])
-
-# 3. Chọn tập đặc trưng và nhãn
-X = df[["work_year", "job_title_encoded", "company_location_encoded"]]
-y = df["salary_in_usd"]
-
-print("Đang huấn luyện mô hình Random Forest...")
-model = RandomForestRegressor(n_estimators=100, random_state=42)
-model.fit(X, y)
-
-# 4. Lưu mô hình và các encoder vào thư mục models/
-joblib.dump(model, os.path.join(models_dir, "salary_model.pkl"))
-joblib.dump(job_encoder, os.path.join(models_dir, "job_encoder.pkl"))
-joblib.dump(location_encoder, os.path.join(models_dir, "location_encoder.pkl"))
-
-print("Đã cập nhật và lưu thành công các file .pkl với đầy đủ quốc gia và 5 năm gần đây!")
+if __name__ == '__main__':
+    main()
