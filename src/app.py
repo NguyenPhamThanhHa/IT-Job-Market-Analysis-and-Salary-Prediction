@@ -1,4 +1,3 @@
-
 import os
 import joblib
 import pandas as pd
@@ -21,7 +20,6 @@ st.markdown(
     h1 {
         text-align: center;
     }
-
     .stForm {
         border-radius: 10px;
     }
@@ -53,40 +51,24 @@ models_dir = next(
 # =========================
 @st.cache_resource
 def load_artifacts():
-    model_path = os.path.join(
-        models_dir, "salary_model.pkl"
-    )
-    job_encoder_path = os.path.join(
-        models_dir, "job_encoder.pkl"
-    )
-    location_encoder_path = os.path.join(
-        models_dir, "location_encoder.pkl"
-    )
+    model_path = os.path.join(models_dir, "salary_model.pkl")
+    job_encoder_path = os.path.join(models_dir, "job_encoder.pkl")
+    location_encoder_path = os.path.join(models_dir, "location_encoder.pkl")
 
-    required_files = [
-        model_path,
-        job_encoder_path,
-        location_encoder_path
-    ]
+    required_files = [model_path, job_encoder_path, location_encoder_path]
 
     for file_path in required_files:
         if not os.path.isfile(file_path):
-            raise FileNotFoundError(
-                f"Không tìm thấy file: {file_path}"
-            )
+            raise FileNotFoundError(f"Không tìm thấy file: {file_path}")
 
     model = joblib.load(model_path)
     job_encoder = joblib.load(job_encoder_path)
-    location_encoder = joblib.load(
-        location_encoder_path
-    )
+    location_encoder = joblib.load(location_encoder_path)
 
     return model, job_encoder, location_encoder
 
-
 try:
     model, job_encoder, location_encoder = load_artifacts()
-
 except Exception as e:
     st.error(f"Lỗi khi tải mô hình: {e}")
     st.info(
@@ -98,13 +80,10 @@ except Exception as e:
 # =========================
 # 5. TIÊU ĐỀ CHƯƠNG TRÌNH
 # =========================
-st.title(
-    "Hệ Thống Dự Đoán Mức Lương Lập Trình Viên Toàn Cầu"
-)
-
+st.title("Hệ Thống Dự Đoán Mức Lương Lập Trình Viên Toàn Cầu")
 st.write(
-    "Nhập thông tin công việc để dự đoán mức lương "
-    "hằng năm bằng mô hình Machine Learning."
+    "Nhập thông tin công việc (Front End, Back End, Mobile, AI Engineer) "
+    "để dự đoán mức lương hằng năm bằng mô hình Machine Learning."
 )
 
 st.divider()
@@ -115,18 +94,32 @@ st.divider()
 job_options = job_encoder.classes_.tolist()
 location_options = location_encoder.classes_.tolist()
 
+# Từ điển ánh xạ mã quốc gia sang tên đầy đủ (đã bổ sung Đức, Pháp, Trung Quốc...)
+country_display_names = {
+    "VN": "Việt Nam (VN)",
+    "US": "Mỹ / Hoa Kỳ (US)",
+    "DE": "Đức (DE)",
+    "FR": "Pháp (FR)",
+    "JP": "Nhật Bản (JP)",
+    "KR": "Hàn Quốc (KR)",
+    "SG": "Singapore (SG)",
+    "CN": "Trung Quốc (CN)",
+    "GB": "Vương quốc Anh (GB)"
+}
+
+display_location_options = [country_display_names.get(loc, loc) for loc in location_options]
+
 # Ưu tiên Việt Nam nếu có trong dữ liệu
-default_location_index = (
-    location_options.index("VN")
-    if "VN" in location_options
-    else 0
-)
+default_location_index = 0
+for idx, loc in enumerate(location_options):
+    if loc == "VN":
+        default_location_index = idx
+        break
 
 # =========================
 # 7. FORM NHẬP THÔNG TIN
 # =========================
 with st.form("prediction_form"):
-
     st.subheader("Nhập thông tin truy vấn")
 
     col1, col2 = st.columns(2)
@@ -134,8 +127,8 @@ with st.form("prediction_form"):
     with col1:
         work_year = st.number_input(
             "Năm làm việc",
-            min_value=2020,
-            max_value=2030,
+            min_value=2022,
+            max_value=2026,
             value=2026,
             step=1
         )
@@ -146,22 +139,21 @@ with st.form("prediction_form"):
             options=job_options
         )
 
-    company_location = st.selectbox(
-        "Mã quốc gia làm việc",
-        options=location_options,
+    selected_display_location = st.selectbox(
+        "Quốc gia làm việc",
+        options=display_location_options,
         index=default_location_index,
-        help="Ví dụ: VN là Việt Nam, US là Hoa Kỳ."
+        help="Chọn quốc gia bạn muốn dự đoán mức lương."
     )
 
-    st.caption(
-        "Mức lương dự đoán được tính bằng USD mỗi năm."
-    )
+    # Lấy lại mã code gốc từ tên hiển thị
+    selected_idx = display_location_options.index(selected_display_location)
+    company_location = location_options[selected_idx]
 
+    st.caption("Mức lương dự đoán được tính bằng USD mỗi năm (Dữ liệu từ 2022 - 2026).")
     st.write("")
 
-    col_left, col_button, col_right = st.columns(
-        [1, 2, 1]
-    )
+    col_left, col_button, col_right = st.columns([1, 2, 1])
 
     with col_button:
         submitted = st.form_submit_button(
@@ -173,25 +165,14 @@ with st.form("prediction_form"):
 # 8. XỬ LÝ DỰ ĐOÁN
 # =========================
 if submitted:
-
     try:
-        # Mã hóa vị trí công việc
-        encoded_job = job_encoder.transform(
-            [job_title]
-        )[0]
-
-        # Mã hóa quốc gia
-        encoded_location = location_encoder.transform(
-            [company_location]
-        )[0]
+        # Mã hóa vị trí công việc và quốc gia
+        encoded_job = job_encoder.transform([job_title])[0]
+        encoded_location = location_encoder.transform([company_location])[0]
 
         # Tạo dữ liệu đầu vào cho mô hình
         X_input = pd.DataFrame(
-            [[
-                work_year,
-                encoded_job,
-                encoded_location
-            ]],
+            [[work_year, encoded_job, encoded_location]],
             columns=[
                 "work_year",
                 "job_title_encoded",
@@ -200,15 +181,10 @@ if submitted:
         )
 
         # Dự đoán mức lương
-        predicted_salary_usd = float(
-            model.predict(X_input)[0]
-        )
+        predicted_salary_usd = float(model.predict(X_input)[0])
 
-        # Kiểm tra kết quả
         if not pd.notna(predicted_salary_usd):
-            raise ValueError(
-                "Mô hình trả về kết quả không hợp lệ."
-            )
+            raise ValueError("Mô hình trả về kết quả không hợp lệ.")
 
         # =========================
         # 9. HIỂN THỊ KẾT QUẢ
@@ -218,20 +194,9 @@ if submitted:
 
         c1, c2, c3 = st.columns(3)
 
-        c1.metric(
-            label="Năm làm việc",
-            value=str(work_year)
-        )
-
-        c2.metric(
-            label="Vị trí công việc",
-            value=job_title
-        )
-
-        c3.metric(
-            label="Quốc gia",
-            value=company_location
-        )
+        c1.metric(label="Năm làm việc", value=str(work_year))
+        c2.metric(label="Vị trí công việc", value=job_title)
+        c3.metric(label="Quốc gia", value=company_location)
 
         if predicted_salary_usd < 0:
             st.warning(
@@ -243,13 +208,10 @@ if submitted:
                 f"Mức lương dự kiến: "
                 f"**${predicted_salary_usd:,.2f} USD/năm**"
             )
-
             st.caption(
                 "Kết quả chỉ mang tính tham khảo, "
                 "phụ thuộc vào dữ liệu và mô hình đã huấn luyện."
             )
 
     except Exception as ex:
-        st.error(
-            f"Đã xảy ra lỗi trong quá trình dự đoán: {ex}"
-        )
+        st.error(f"Đã xảy ra lỗi trong quá trình dự đoán: {ex}")
