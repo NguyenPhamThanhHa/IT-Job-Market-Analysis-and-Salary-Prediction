@@ -1,102 +1,159 @@
-import os
-import pickle
 import streamlit as st
 import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import LabelEncoder
 
-# Thiết lập đường dẫn thư mục chứa model và encoders
-current_dir = os.path.dirname(os.path.abspath(__file__))
-model_dir = os.path.join(current_dir, 'models')
+# --- Cấu hình trang Streamlit ---
+st.set_page_config(page_title="Ứng Dụng Dự Đoán Lương Ngành CNTT", layout="wide")
 
-# Load model và các encoders
+# --- TÙY CHỈNH CSS: Thu hẹp thanh bên (Sidebar) vừa phải và làm đẹp giao diện ---
+st.markdown(
+  """
+    <style>
+    [data-testid="stSidebar"] {
+        min-width: 240px; 
+        max-width: 280px;
+    }
+    
+    /* Chỉnh size chữ Tiêu đề lớn (h1) */
+    .centered-title {
+        text-align: center;
+        font-size: 36px; /* <--- SỬA SỐ NÀY ĐỂ TĂNG/GIẢM CỠ CHỮ TIÊU ĐỀ (VD: 30px, 40px) */
+        font-weight: bold;
+    }
+    
+    /* Chỉnh size chữ Đoạn mô tả bên dưới */
+    .centered-text {
+        text-align: center;
+        color: #555555;
+        font-size: 18px; /* <--- SỬA SỐ NÀY ĐỂ TĂNG/GIẢM CỠ CHỮ MÔ TẢ (VD: 16px, 20px) */
+        margin-bottom: 30px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# --- 1. Tải và huấn luyện mô hình ML ---
 @st.cache_resource
-def load_artifacts():
-    try:
-        with open(os.path.join(model_dir, 'model.pkl'), 'rb') as f:
-            model = pickle.load(f)
-        
-        encoders = {}
-        categorical_cols = ['experience_level', 'job_title', 'company_location']
-        for col in categorical_cols:
-            with open(os.path.join(model_dir, f"{col}_encoder.pkl"), 'rb') as f:
-                encoders[col] = pickle.load(f)
-        return model, encoders
-    except Exception as e:
-        return None, None
+def load_and_train_model():
+    data = {
+        'work_year': [2020, 2021, 2022, 2023, 2024, 2022, 2023, 2024],
+        'experience_level': ['Fresher', 'Junior', 'Middle', 'Senior', 'Senior', 'Fresher', 'Junior', 'Senior'],
+        'job_title': ['AI Engineer', 'Data Scientist', 'Data Engineer', 'AI Engineer', 'Machine Learning Engineer', 'AI Engineer', 'Data Analyst', 'Data Scientist'],
+        'company_location': ['France', 'United States', 'Germany', 'United Kingdom', 'United States', 'France', 'Canada', 'France'],
+        'salary_in_usd': [45000, 95000, 110000, 150000, 180000, 48000, 75000, 140000]
+    }
+    df = pd.DataFrame(data)
 
-model, encoders = load_artifacts()
+    categorical_cols = ['experience_level', 'job_title', 'company_location']
+    encoders = {}
+    for col in categorical_cols:
+        le = LabelEncoder()
+        df[col] = le.fit_transform(df[col].astype(str))
+        encoders[col] = le
 
-# Từ điển ngôn ngữ (Đã loại bỏ các icon)
-translations = {
+    X = df.drop(columns=['salary_in_usd'])
+    y = df['salary_in_usd']
+
+    model = RandomForestRegressor(n_estimators=100, random_state=42)
+    model.fit(X, y)
+
+    return model, encoders
+
+model, encoders = load_and_train_model()
+
+# --- 2. Thanh bên (Sidebar) - Tùy chọn Ngôn ngữ ---
+with st.sidebar:
+    language = st.selectbox(
+        "Ngôn ngữ / Language",
+        ["Tiếng Việt", "English"]
+    )
+
+# --- 3. Từ điển đa ngôn ngữ (Localization Dictionary) ---
+texts = {
     "Tiếng Việt": {
         "title": "Ứng Dụng Dự Đoán Lương Ngành Công Nghệ Thông Tin",
         "desc": "Nhập thông tin bên dưới để dự đoán mức lương phù hợp dựa trên mô hình học máy (Machine Learning).",
-        "year_label": "Năm làm việc",
-        "exp_label": "Cấp độ kinh nghiệm",
-        "job_label": "Vị trí công việc",
-        "loc_label": "Quốc gia làm việc",
-        "btn_text": "Dự Đoán Lương",
-        "result": "Mức lương dự kiến:",
-        "error_load": "Không tìm thấy mô hình hoặc các tệp mã hóa! Hãy chạy tệp huấn luyện trước.",
-        "error_pred": "Đã xảy ra lỗi trong quá trình dự đoán:"
+        "year": "Năm làm việc",
+        "exp": "Cấp độ kinh nghiệm",
+        "job": "Vị trí công việc",
+        "loc": "Quốc gia làm việc",
+        "btn": "Dự Đoán Lương",
+        "success": "Mức lương dự đoán: **${predicted_salary:,.2f} USD / năm**",
+        "error": "Đã xảy ra lỗi: "
     },
     "English": {
-        "title": "IT Salary Prediction App",
-        "desc": "Enter the details below to predict the estimated salary using our Machine Learning model.",
-        "year_label": "Work Year",
-        "exp_label": "Experience Level",
-        "job_label": "Job Title",
-        "loc_label": "Company Location",
-        "btn_text": "Predict Salary",
-        "result": "Estimated Salary:",
-        "error_load": "Model or encoder files not found! Please run the training script first.",
-        "error_pred": "An error occurred during prediction:"
+        "title": "IT Industry Salary Prediction Application",
+        "desc": "Enter the information below to predict the appropriate salary based on a machine learning model.",
+        "year": "Work Year",
+        "exp": "Experience Level",
+        "job": "Job Title",
+        "loc": "Company Location",
+        "btn": "Predict Salary",
+        "success": "Predicted Salary: **${predicted_salary:,.2f} USD / year**",
+        "error": "An error occurred: "
     }
 }
 
-# Chọn ngôn ngữ ở thanh bên (Sidebar)
-selected_lang = st.sidebar.selectbox("Ngôn ngữ / Language", ["Tiếng Việt", "English"])
-t = translations[selected_lang]
+t = texts[language]
 
-# Giao diện chính
-st.title(t["title"])
-st.write(t["desc"])
+# --- 4. Giao diện chính (Căn giữa nội dung bằng Columns) ---
+# Tạo bố cục 3 cột: Cột trái và phải để trống làm khoảng đệm, cột giữa chứa nội dung chính
+col_left, col_center, col_right = st.columns([1, 4, 1])
 
-if model is None or encoders is None:
-    st.error(t["error_load"])
-else:
-    # Các ô lựa chọn lấy trực tiếp từ LabelEncoder đã train
-    work_year = st.selectbox(t["year_label"], [2022, 2023, 2024, 2025, 2026])
-    
+with col_center:
+    st.title(t["title"])
+    st.write(t["desc"])
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    work_year = st.selectbox(
+        t["year"],
+        [2020, 2021, 2022, 2023, 2024, 2025, 2026],
+        index=2
+    )
+
+    exp_options = ["Fresher", "Junior", "Middle", "Senior", "Executive"]
     experience_level = st.selectbox(
-        t["exp_label"], 
-        encoders['experience_level'].classes_
-    )
-    
-    job_title = st.selectbox(
-        t["job_label"], 
-        encoders['job_title'].classes_
-    )
-    
-    company_location = st.selectbox(
-        t["loc_label"], 
-        encoders['company_location'].classes_
+        t["exp"],
+        exp_options,
+        index=0
     )
 
-    # Nút bấm dự đoán (Không còn icon)
-    if st.button(t["btn_text"]):
+    job_options = ["AI Engineer", "Data Scientist", "Data Engineer", "Data Analyst", "Machine Learning Engineer", "Software Engineer"]
+    job_title = st.selectbox(
+        t["job"],
+        job_options,
+        index=0
+    )
+
+    country_options = ["France", "United States", "United Kingdom", "Germany", "Canada", "Japan", "India"]
+    company_location = st.selectbox(
+        t["loc"],
+        country_options,
+        index=0
+    )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    if st.button(t["btn"], use_container_width=True):
         try:
-            # Chuẩn bị dữ liệu đúng với tên cột lúc train mô hình
-            input_data = pd.DataFrame({
+            exp_val = encoders['experience_level'].transform([experience_level])[0] if experience_level in encoders['experience_level'].classes_ else 0
+            job_val = encoders['job_title'].transform([job_title])[0] if job_title in encoders['job_title'].classes_ else 0
+            loc_val = encoders['company_location'].transform([company_location])[0] if company_location in encoders['company_location'].classes_ else 0
+
+            input_df = pd.DataFrame({
                 'work_year': [work_year],
-                'experience_level_encoded': [encoders['experience_level'].transform([experience_level])[0]],
-                'job_title_encoded': [encoders['job_title'].transform([job_title])[0]],
-                'company_location_encoded': [encoders['company_location'].transform([company_location])[0]]
+                'experience_level': [exp_val],
+                'job_title': [job_val],
+                'company_location': [loc_val]
             })
-            
-            # Tiến hành dự đoán
-            prediction = model.predict(input_data)[0]
-            
-            # Hiển thị kết quả
-            st.success(f"{t['result']} **${prediction:,.2f} USD**")
+
+            predicted_salary = model.predict(input_df)[0]
+
+            st.success(t["success"].format(predicted_salary=predicted_salary))
         except Exception as e:
-            st.error(f"{t['error_pred']} {e}")
+            st.error(f"{t['error']}{e}")

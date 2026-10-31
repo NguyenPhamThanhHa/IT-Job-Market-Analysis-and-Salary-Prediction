@@ -1,64 +1,73 @@
-import os
-import pickle
 import pandas as pd
-from sklearn.preprocessing import LabelEncoder
+import numpy as np
+from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-def main():
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    model_dir = os.path.join(current_dir, 'models')
-    os.makedirs(model_dir, exist_ok=True)
+# 1. Đọc dữ liệu từ file (Thay 'salary_data.csv' hoặc đường dẫn file của bạn)
+# Nếu file của bạn phân tách bằng dấu phẩy (CSV) hoặc tab (TXT), điều chỉnh hàm read_csv/read_table tương ứng:
+try:
+    df = pd.read_csv('salary_data.csv') # Hoặc pd.read_csv('salary_data.txt', sep='\t')
+except FileNotFoundError:
+    # Dữ liệu giả lập chuẩn mô phỏng theo cấu trúc file Kaggle (bao gồm các quốc gia phổ biến)
+    data = {
+        'work_year': [2023, 2023, 2024, 2024, 2023, 2024, 2023],
+        'experience_level': ['SE', 'MI', 'EN', 'SE', 'EX', 'MI', 'EN'],
+        'employment_type': ['FT', 'FT', 'FT', 'FT', 'FT', 'FT', 'FT'],
+        'job_title': ['Data Scientist', 'Data Engineer', 'Data Analyst', 'ML Engineer', 'Data Scientist', 'Data Analyst', 'Data Engineer'],
+        'salary_in_usd': [140000, 95000, 60000, 160000, 200000, 85000, 50000],
+        'company_location': ['US', 'GB', 'CA', 'US', 'DE', 'IN', 'GB'],
+        'company_size': ['M', 'L', 'S', 'L', 'M', 'L', 'S']
+    }
+    df = pd.DataFrame(data)
 
-    print("Đang huấn luyện mô hình với đầy đủ các tính năng...")
+print("--- CÁC QUỐC GIA CÓ TRONG TẬP DỮ LIỆU ---")
+countries = df['company_location'].unique()
+print(countries)
 
-    # Đã bổ sung 'Fresher' vào cấp độ kinh nghiệm
-    df = pd.DataFrame({
-        'work_year': [2022, 2023, 2024, 2022, 2023, 2024, 2023, 2024, 2022, 2023],
-        'experience_level': ['Fresher', 'Junior', 'Mid-level', 'Senior', 'Fresher', 'Junior', 'Senior', 'Mid-level', 'Junior', 'Fresher'],
-        'job_title': [
-            'Front-end Developer', 'Back-end Developer', 'Mobile Developer', 
-            'AI Engineer', 'Front-end Developer', 'Back-end Developer', 
-            'Mobile Developer', 'AI Engineer', 'Front-end Developer', 'AI Engineer'
-        ],
-        'company_location': [
-            'Vietnam', 'USA', 'UK', 'France', 'Singapore', 
-            'Vietnam', 'UK', 'France', 'USA', 'Singapore'
-        ],
-        'salary': [30000, 45000, 90000, 135000, 32000, 48000, 140000, 95000, 50000, 35000]
-    })
+# 2. Tiền xử lý dữ liệu & Mã hóa các biến phân loại (Categorical variables)
+categorical_cols = ['experience_level', 'employment_type', 'job_title', 'company_location', 'company_size']
+encoders = {}
 
-    encoders = {}
-    categorical_cols = ['experience_level', 'job_title', 'company_location']
+for col in categorical_cols:
+    le = LabelEncoder()
+    df[col] = le.fit_transform(df[col].astype(str))
+    encoders[col] = le  # Lưu lại encoder để sau này nếu cần giải mã ngược
 
-    # Huấn luyện và lưu encoder cho từng cột phân loại
-    for col in categorical_cols:
-        le = LabelEncoder()
-        le.fit(df[col].astype(str))
-        encoders[col] = le
-        
-        # Lưu lại file encoder
-        encoder_path = os.path.join(model_dir, f"{col}_encoder.pkl")
-        with open(encoder_path, 'wb') as f:
-            pickle.dump(le, f)
-        print(f"-> Đã lưu: {encoder_path}")
+# 3. Chia tập dữ liệu thành Train (80%) và Test (20%)
+X = df.drop(columns=['salary_in_usd'])
+y = df['salary_in_usd']
 
-    # Chuẩn bị dữ liệu train mô hình chính
-    X = df[['work_year']].copy()
-    for col in categorical_cols:
-        X[f'{col}_encoded'] = encoders[col].transform(df[col].astype(str))
-    
-    y = df['salary']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    model = RandomForestRegressor(random_state=42)
-    model.fit(X, y)
+# 4. Huấn luyện mô hình Random Forest Regressor
+model = RandomForestRegressor(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
 
-    # Lưu mô hình chính
-    model_path = os.path.join(model_dir, 'model.pkl')
-    with open(model_path, 'wb') as f:
-        pickle.dump(model, f)
-    print(f"-> Đã lưu mô hình chính tại: {model_path}")
+# 5. Đánh giá mô hình
+y_pred = model.predict(X_test)
+mae = mean_absolute_error(y_test, y_pred)
+rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+r2 = r2_score(y_test, y_pred)
 
-    print("Hoàn tất huấn luyện toàn bộ tính năng!")
+print("\n--- ĐÁNH GIÁ HIỆU SUẤT MÔ HÌNH ---")
+print(f"Sai số tuyệt đối trung bình (MAE): ${mae:,.2f}")
+print(f"Căn bậc hai sai số bình phương (RMSE): ${rmse:,.2f}")
+print(f"Hệ số xác định (R² Score): {r2:.4f}")
 
-if __name__ == '__main__':
-    main()
+# 6. Ví dụ thực hiện dự đoán lương cho một mẫu mới theo quốc gia cụ thể
+# Giả sử dự đoán cho một vị trí Senior Data Scientist tại Mỹ (US) và Anh (GB)
+print("\n--- KẾT QUẢ DỰ ĐOÁN MẪU ---")
+sample_data = pd.DataFrame({
+    'work_year': [2024, 2024],
+    'experience_level': [encoders['experience_level'].transform(['SE'])[0], encoders['experience_level'].transform(['SE'])[0]],
+    'employment_type': [encoders['employment_type'].transform(['FT'])[0], encoders['employment_type'].transform(['FT'])[0]],
+    'job_title': [encoders['job_title'].transform(['Data Scientist'])[0], encoders['job_title'].transform(['Data Scientist'])[0]],
+    'company_location': [encoders['company_location'].transform(['US'])[0], encoders['company_location'].transform(['GB'])[0]],
+    'company_size': [encoders['company_size'].transform(['M'])[0], encoders['company_size'].transform(['M'])[0]]
+})
+
+predicted_salaries = model.predict(sample_data)
+print(f"Dự đoán lương tại Mỹ (US): ${predicted_salaries[0]:,.2f}")
+print(f"Dự đoán lương tại Anh (GB): ${predicted_salaries[1]:,.2f}")
